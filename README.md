@@ -1,125 +1,231 @@
-# Kit de Inicio — Monitor de Coyuntura y Proyección Macroeconómica
+Monitor de Coyuntura y Proyección Macroeconómica — IMACEC
 
-**Ciencia de Datos para Economía (ICO09425) — Trabajo Semestral**
+Proyecto semestral de Ciencia de Datos para Economía (ICO09425).
 
-Este repositorio es la plantilla oficial del trabajo semestral. Contiene un
-pipeline funcionando de punta a punta: extracción desde APIs oficiales →
-base de datos relacional (SQLite) → consultas SQL → análisis en Python →
-vista para Power BI. Su tarea es **adaptarlo y extenderlo** para su variable
-objetivo asignada.
+1. Descripción
 
-## Estructura del repositorio
+El proyecto tiene como variable objetivo el IMACEC (Índice Mensual de Actividad Económica).
 
-```
-├── README.md                  <- Este archivo (edítenlo con su proyecto)
-├── requirements.txt           <- Dependencias de Python
-├── .env.example               <- Plantilla de credenciales (copiar a .env)
-├── .gitignore                 <- Excluye .env y la base de datos del repo
-├── sql/
-│   ├── 01_esquema.sql         <- Esquema de la base de datos (3 tablas)
-│   └── 02_consultas_ejemplo.sql <- Consultas con JOIN, GROUP BY y ventanas
-├── src/
-│   ├── config.py              <- Configuración y CATÁLOGO DE SERIES (editar aquí)
-│   ├── extraccion.py          <- Descarga desde BCCh y FRED (+ modo demo)
-│   ├── carga_db.py            <- Carga a SQLite
-│   └── exportar_powerbi.py    <- Crea la vista que consume Power BI
-├── notebooks/
-│   ├── 01_pipeline_datos.ipynb    <- Extracción, carga y consultas SQL
-│   └── 02_analisis_ejemplo.ipynb  <- Coyuntura, ARIMA y evaluación de pronósticos
-├── dashboard/
-│   └── README_powerbi.md      <- Cómo conectar Power BI a la base de datos
-└── data/                      <- Base de datos local (no se sube a GitHub)
-```
+La pregunta que guía el trabajo es:
 
-## Puesta en marcha (10 minutos)
+¿Cuál es nuestra proyección para la variación interanual del IMACEC durante los próximos 12 meses, en qué evidencia y modelos se sustenta, y cuáles son los principales riesgos del escenario?
 
-**1. Clonar e instalar dependencias**
+Para analizar la actividad económica se utilizan 12 series obtenidas desde la API del Banco Central de Chile, incluyendo:
 
-```bash
-git clone <url-de-su-repositorio>
-cd kit-inicio-coyuntura
+IMACEC Total.
+
+IMACEC Minero.
+
+IMACEC No Minero.
+
+Índice de Incertidumbre de Política Económica (EPU).
+
+Tasa de Política Monetaria (TPM).
+
+IPC.
+
+Tasa de desocupación.
+
+Precio del cobre.
+
+Precio del petróleo Brent.
+
+Tipo de cambio nominal.
+
+Índice de actividad del comercio al por menor.
+
+Índice de Confianza Empresarial (IMCE).
+
+Los datos se almacenan en una base de datos relacional SQLite compuesta principalmente por las tablas temas, series y observaciones.
+
+2. Requisitos
+
+Se requiere tener instalado:
+
+Python.
+
+pip.
+
+Git.
+
+Las dependencias del proyecto se encuentran en requirements.txt.
+
+Para instalarlas:
+
 pip install -r requirements.txt
-```
 
-**2. Probar el pipeline SIN credenciales (modo demo)**
+3. Credenciales
 
-El modo demo genera series sintéticas con la estructura real, para que
-verifiquen que todo funciona antes de tramitar sus claves:
+Las credenciales utilizadas para acceder a las APIs se almacenan localmente en un archivo .env.
 
-```bash
-python src/carga_db.py --demo
-python src/exportar_powerbi.py
-```
+Primero se debe copiar el archivo de ejemplo:
 
-Si ven `Base de datos lista en: .../data/coyuntura.db`, el pipeline funciona.
+Windows PowerShell
 
-**3. Obtener credenciales (gratuitas)**
+Copy-Item .env.example .env
 
-- **Banco Central de Chile:** registrarse en
-  <https://si3.bcentral.cl/Siete/es/Siete/API> y anotar usuario y contraseña.
-- **FRED:** solicitar API key en
-  <https://fred.stlouisfed.org/docs/api/api_key.html>.
+Luego se deben completar las credenciales correspondientes dentro de .env.
 
-Luego copiar la plantilla y completar las claves:
+El archivo .env no se sub a GitHub y está excluido mediante .gitignore.
 
-```bash
-cp .env.example .env
-# editar .env con sus credenciales
-```
+4. Reproducción del proyecto
 
-**4. Cargar datos reales**
+Clonar el repositorio:
 
-```bash
-python src/carga_db.py
-python src/exportar_powerbi.py
-```
+git clone https://github.com/vicentefuentesm/proyecto-imacec.git
+cd proyecto-imacec
 
-**Fecha de corte.** Por defecto se descarga hasta el día de hoy, así que la base
-cambia cada vez que la corren. Para que dos integrantes que ejecuten el pipeline
-en días distintos obtengan **exactamente la misma base**, fijen el corte:
+Instalar las dependencias:
 
-```bash
-python src/carga_db.py --hasta 2026-07-31
-python src/carga_db.py --desde 2015-01-01 --hasta 2026-07-31
-```
+pip install -r requirements.txt
 
-Fijar el corte es lo que hace reproducible la extracción, y es también la
-primera defensa contra el sesgo de anticipación cuando evalúen pronósticos.
+Crear y configurar el archivo .env según la sección anterior.
 
-La base de datos del proyecto fue construida utilizando como fecha de corte
-el 31 de agosto de 2026.
+4.1. Descargar y cargar los datos
 
-Para reproducir la carga:
+La fecha de corte utilizada para el Hito 2 es el 31 de agosto de 2026.
 
-```bash
+Ejecutar:
+
 python src/carga_db.py --hasta 2026-08-31
 
-**Revisen la salida.** Si una serie falla (código equivocado, API caída), se
-informa con `[ERROR]` y el proceso **continúa con las demás**. El script termina
-sin error aunque falten series. Cuenten los `[OK]`: deben ser tantos como series
-tenga su catálogo.
+La carga correcta debe terminar con:
 
-**5. Definir SUS series**
+12 series cargadas.
 
-Editar el catálogo en `src/config.py` (`SERIES_BCCH` y `SERIES_FRED`).
-Los códigos del BCCh se encuentran en la ficha de cada serie en
-<https://si3.bcentral.cl/siete>. Recuerden el mínimo de **12 series** del
-enunciado.
+Un [OK] por cada serie.
 
-## Reglas importantes
+Ningún [ERROR].
 
-- **NUNCA** suban el archivo `.env` a GitHub (el `.gitignore` ya lo excluye,
-  no lo modifiquen). Subir credenciales es falta grave.
-- Todos los integrantes deben hacer commits desde la primera semana.
-- El análisis debe poder reproducirse con: `pip install -r requirements.txt`,
-  `.env` con credenciales propias, y `python src/carga_db.py`.
+10.299 observaciones cargadas o actualizadas.
 
-## Qué deben completar ustedes
+La base se genera localmente en:
 
-- [ ] Reemplazar este README con la descripción de SU proyecto
-- [ ] Catálogo de series propio (≥ 12 series) en `src/config.py`
-- [ ] Consultas SQL propias en `sql/` (JOIN, GROUP BY, ventana)
-- [ ] Análisis de coyuntura y de relaciones (notebooks propios)
-- [ ] Dos modelos de proyección + evaluación fuera de muestra vs. benchmark ingenuo
-- [ ] Monitor en Power BI conectado a `data/coyuntura.db`
-- [ ] Informe final y presentación
+data/coyuntura.db
+
+La carpeta data/ no se sube al repositorio.
+
+4.2. Verificar la base de datos
+
+Ejecutar:
+
+python src/verificar_base.py
+
+Este script revisa para cada serie:
+
+cantidad de observaciones;
+
+fecha inicial;
+
+fecha final;
+
+frecuencia;
+
+unidad.
+
+También se revisan los valores recientes de la TPM y la tasa de desocupación para comprobar que la base contiene datos reales y no datos generados con el modo demo.
+
+4.3. Ejecutar las consultas SQL
+
+Ejecutar:
+
+python src/consultas.py
+
+Las consultas utilizadas se encuentran en:
+
+sql/02_consultas_imacec.sql
+
+El archivo contiene tres consultas principales:
+
+JOIN: relaciona observaciones, series y temas.
+
+GROUP BY: lleva las series de frecuencia diaria a frecuencia mensual mediante promedios mensuales.
+
+Función de ventana: calcula la variación interanual del IMACEC utilizando LAG, PARTITION BY y ORDER BY.
+
+La función de ventana se calcula de manera independiente para cada serie, evitando mezclar observaciones correspondientes a indicadores distintos.
+
+5. Estructura del repositorio
+
+proyecto-imacec/
+│
+├── README.md
+├── requirements.txt
+├── .env.example
+├── .gitignore
+│
+├── data/
+│   └── coyuntura.db            # Se genera localmente y no se sube
+│
+├── docs/
+│   └── Hito2_Imacec.xlsx
+│
+├── sql/
+│   ├── 01_esquema.sql
+│   ├── 02_consultas_imacec.sql
+│   └── 03_revision_base.sql
+│
+├── src/
+│   ├── config.py
+│   ├── extraccion.py
+│   ├── carga_db.py
+│   ├── verificar_base.py
+│   ├── consultas.py
+│   └── exportar_powerbi.py
+│
+└── dashboard/
+    └── README_powerbi.md
+
+6. Base de datos
+
+La base utiliza SQLite y contiene tres tablas principales:
+
+temas
+
+Clasifica las series según su área económica, por ejemplo actividad, precios, mercado laboral, política monetaria y sector externo.
+
+series
+
+Contiene el catálogo de indicadores económicos, incluyendo nombre, fuente, frecuencia, unidad y tema.
+
+observaciones
+
+Contiene los valores observados de cada serie económica en cada fecha.
+
+Las tablas están relacionadas mediante identificadores y llaves foráneas.
+
+7. Consultas SQL
+
+Las consultas del Hito 2 fueron diseñadas para cumplir los requerimientos de análisis sobre la base relacional.
+
+Se utilizan:
+
+JOIN para relacionar las tablas de la base.
+
+GROUP BY para agregar las observaciones diarias a frecuencia mensual.
+
+AVG() para calcular promedios mensuales.
+
+LAG() para recuperar el valor de una serie doce meses atrás.
+
+PARTITION BY para realizar el cálculo independientemente dentro de cada serie.
+
+ORDER BY para mantener el orden temporal de las observaciones.
+
+Por ejemplo, la variación interanual del IMACEC se calcula comparando cada valor mensual con el correspondiente a doce meses atrás.
+
+8. Consideraciones de reproducibilidad
+
+Para reproducir correctamente el proyecto:
+
+No utilizar el modo --demo para la entrega.
+
+Mantener las credenciales exclusivamente en .env.
+
+No subir data/coyuntura.db a GitHub.
+
+Utilizar la fecha de corte 2026-08-31.
+
+Instalar previamente las dependencias desde requirements.txt.
+
+Ejecutar los scripts desde la raíz del repositorio.
